@@ -325,12 +325,607 @@ const TOOLS = [
     },
     handler: async ({ threadId }) => apiRequest("GET", `/threads/${threadId}`),
   },
+
+  // ── Cells (CRUD) ──────────────────────────────────────────────────────────
+  {
+    name: "hex-create-cell",
+    description: "Create a new cell in the draft version of a project.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        projectId: { type: "string", description: "Project UUID" },
+        cellType: { type: "string", enum: ["CODE", "SQL", "MARKDOWN", "INPUT", "WRITEBACK"], description: "Type of cell" },
+        source: { type: "string", description: "Cell source content" },
+        afterCellId: { type: "string", description: "Insert after this cell ID" },
+      },
+      required: ["projectId", "cellType"],
+    },
+    handler: async (p) => {
+      const { projectId, ...body } = p;
+      return apiRequest("POST", `/cells${qs({ projectId })}`, body);
+    },
+  },
+  {
+    name: "hex-get-cell",
+    description: "Get a single cell by ID.",
+    inputSchema: {
+      type: "object",
+      properties: { cellId: { type: "string" } },
+      required: ["cellId"],
+    },
+    handler: async ({ cellId }) => apiRequest("GET", `/cells/${cellId}`),
+  },
+  {
+    name: "hex-update-cell",
+    description: "Update a cell's source and/or data connection.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        cellId: { type: "string" },
+        source: { type: "string", description: "New cell source content" },
+        dataConnectionId: { type: "string", description: "Data connection UUID for SQL cells" },
+      },
+      required: ["cellId"],
+    },
+    handler: async (p) => {
+      const { cellId, ...body } = p;
+      return apiRequest("PATCH", `/cells/${cellId}`, body);
+    },
+  },
+  {
+    name: "hex-delete-cell",
+    description: "Delete a cell from the draft version of a project.",
+    inputSchema: {
+      type: "object",
+      properties: { cellId: { type: "string" } },
+      required: ["cellId"],
+    },
+    handler: async ({ cellId }) => apiRequest("DELETE", `/cells/${cellId}`),
+  },
+  {
+    name: "hex-get-chart-image-from-logic",
+    description: "Get rendered PNG of a chart cell from the draft session.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        cellId: { type: "string" },
+        width: { type: "integer", description: "Image width (100-2000)" },
+        height: { type: "integer", description: "Image height (100-2000)" },
+      },
+      required: ["cellId"],
+    },
+    handler: async ({ cellId, ...rest }) => apiRequest("GET", `/cells/${cellId}/image${qs(rest)}`),
+  },
+  {
+    name: "hex-get-cell-output",
+    description: "Get cell output (unstable API). Returns the output of a cell.",
+    inputSchema: {
+      type: "object",
+      properties: { cellId: { type: "string" } },
+      required: ["cellId"],
+    },
+    handler: async ({ cellId }) => apiRequest("GET", `/cells/${cellId}/output`),
+  },
+
+  // ── Collections (create, get, edit) ───────────────────────────────────────
+  {
+    name: "hex-create-collection",
+    description: "Create a new collection in the workspace.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Collection name" },
+        description: { type: "string" },
+        members: { type: "object", description: "Sharing config: { groups: [...], workspace: { members: 'MEMBER' } }" },
+      },
+      required: ["name"],
+    },
+    handler: async (body) => apiRequest("POST", "/collections", body),
+  },
+  {
+    name: "hex-get-collection",
+    description: "Get details of a single collection by ID.",
+    inputSchema: {
+      type: "object",
+      properties: { collectionId: { type: "string" } },
+      required: ["collectionId"],
+    },
+    handler: async ({ collectionId }) => apiRequest("GET", `/collections/${collectionId}`),
+  },
+  {
+    name: "hex-edit-collection",
+    description: "Edit a collection (name, description, sharing).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        collectionId: { type: "string" },
+        name: { type: "string" },
+        description: { type: "string" },
+        sharing: { type: "object", description: "Sharing upsert config" },
+      },
+      required: ["collectionId"],
+    },
+    handler: async (p) => {
+      const { collectionId, ...body } = p;
+      return apiRequest("PATCH", `/collections/${collectionId}`, body);
+    },
+  },
+
+  // ── Context / Topics ──────────────────────────────────────────────────────
+  {
+    name: "hex-list-topics",
+    description: "List thread topics in the workspace, sorted by name.",
+    inputSchema: { type: "object", properties: {} },
+    handler: async () => apiRequest("GET", "/context/topics"),
+  },
+
+  // ── Data Connections (create, edit, schema) ───────────────────────────────
+  {
+    name: "hex-create-data-connection",
+    description: "Create a new data connection in the workspace.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Connection name" },
+        type: { type: "string", description: "Connection type (snowflake, bigquery, postgres, etc.)" },
+        description: { type: "string" },
+        connectionDetails: { type: "object", description: "Connection details (type-specific)" },
+      },
+      required: ["name", "type", "connectionDetails"],
+    },
+    handler: async (body) => apiRequest("POST", "/data-connections", body),
+  },
+  {
+    name: "hex-edit-data-connection",
+    description: "Edit a data connection (name, description, credentials, sharing).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        dataConnectionId: { type: "string" },
+        name: { type: "string" },
+        description: { type: "string" },
+        connectionDetails: { type: "object", description: "Updated connection details" },
+        sharing: { type: "object", description: "Sharing config" },
+      },
+      required: ["dataConnectionId"],
+    },
+    handler: async (p) => {
+      const { dataConnectionId, ...body } = p;
+      return apiRequest("PATCH", `/data-connections/${dataConnectionId}`, body);
+    },
+  },
+  {
+    name: "hex-update-data-connection-schema",
+    description: "Add/remove statuses (endorsements) from databases, schemas, tables in a data connection.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        dataConnectionId: { type: "string" },
+        updates: { type: "object", description: "Schema status updates" },
+      },
+      required: ["dataConnectionId", "updates"],
+    },
+    handler: async (p) => {
+      const { dataConnectionId, ...body } = p;
+      return apiRequest("PATCH", `/data-connections/${dataConnectionId}/schema`, body);
+    },
+  },
+
+  // ── Embedding ─────────────────────────────────────────────────────────────
+  {
+    name: "hex-create-presigned-url",
+    description: "Create an embedded URL for a project (for iframe embedding).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        projectId: { type: "string" },
+        hexUserAttributes: { type: "object", description: "Attributes for the running user" },
+        scope: { type: "array", description: "Permissions: EXPORT_PDF, EXPORT_CSV" },
+        inputParameters: { type: "object", description: "Default input parameter values" },
+        expiresIn: { type: "number", description: "Expiration in ms (default 15000, max 300000)" },
+      },
+      required: ["projectId"],
+    },
+    handler: async (p) => {
+      const { projectId, ...body } = p;
+      return apiRequest("POST", `/embedding/createPresignedUrl/${projectId}`, body);
+    },
+  },
+
+  // ── Groups (create, delete, edit) ─────────────────────────────────────────
+  {
+    name: "hex-create-group",
+    description: "Create a new group in the workspace.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Group name" },
+        members: { type: "object", description: "{ users: [{ id: '...' }] }" },
+      },
+      required: ["name"],
+    },
+    handler: async (body) => apiRequest("POST", "/groups", body),
+  },
+  {
+    name: "hex-delete-group",
+    description: "Delete a group from the workspace.",
+    inputSchema: {
+      type: "object",
+      properties: { groupId: { type: "string" } },
+      required: ["groupId"],
+    },
+    handler: async ({ groupId }) => apiRequest("DELETE", `/groups/${groupId}`),
+  },
+  {
+    name: "hex-edit-group",
+    description: "Edit a group (name, members).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        groupId: { type: "string" },
+        name: { type: "string" },
+        members: { type: "object", description: "{ add: { users: [...] }, remove: { users: [...] } }" },
+      },
+      required: ["groupId"],
+    },
+    handler: async (p) => {
+      const { groupId, ...body } = p;
+      return apiRequest("PATCH", `/groups/${groupId}`, body);
+    },
+  },
+
+  // ── Guides ────────────────────────────────────────────────────────────────
+  {
+    name: "hex-upsert-guide-draft",
+    description: "Update or create guide drafts by filePath.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        guides: { type: "array", description: "Array of { filePath, content } objects" },
+      },
+      required: ["guides"],
+    },
+    handler: async (body) => apiRequest("PUT", "/guides/draft", body),
+  },
+  {
+    name: "hex-list-draft-guides",
+    description: "List draft guides (paginated).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        limit: { type: "integer" },
+        after: { type: "string" },
+      },
+    },
+    handler: async (p) => apiRequest("GET", `/guides/draft/list${qs(p)}`),
+  },
+  {
+    name: "hex-delete-guide-draft",
+    description: "Delete a guide draft by ID.",
+    inputSchema: {
+      type: "object",
+      properties: { orgGuideFileId: { type: "string" } },
+      required: ["orgGuideFileId"],
+    },
+    handler: async ({ orgGuideFileId }) => apiRequest("DELETE", `/guides/draft/${orgGuideFileId}`),
+  },
+  {
+    name: "hex-publish-guide-drafts",
+    description: "Publish all currently drafted guides.",
+    inputSchema: { type: "object", properties: {} },
+    handler: async () => apiRequest("POST", "/guides/publish"),
+  },
+
+  // ── Projects (create, update, export, compute, sharing) ───────────────────
+  {
+    name: "hex-create-project",
+    description: "Create a new project with title and optional description.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        title: { type: "string" },
+        description: { type: "string" },
+      },
+      required: ["title"],
+    },
+    handler: async (body) => apiRequest("POST", "/projects", body),
+  },
+  {
+    name: "hex-batch-update-compute-profile",
+    description: "Batch update kernel image/size on multiple projects.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        projectIds: { type: "array", description: "Array of project UUIDs" },
+        computeProfile: { type: "object", description: "{ image, size }" },
+      },
+      required: ["projectIds", "computeProfile"],
+    },
+    handler: async (body) => apiRequest("POST", "/projects/compute-profile/batch", body),
+  },
+  {
+    name: "hex-export-project",
+    description: "Export a project as .hex.yaml format.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        projectId: { type: "string" },
+      },
+      required: ["projectId"],
+    },
+    handler: async (body) => apiRequest("POST", "/projects/export", body),
+  },
+  {
+    name: "hex-update-project",
+    description: "Add or remove a status (including endorsements) from a project.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        projectId: { type: "string" },
+        status: { type: "object", description: "Status to set or remove" },
+      },
+      required: ["projectId"],
+    },
+    handler: async (p) => {
+      const { projectId, ...body } = p;
+      return apiRequest("PATCH", `/projects/${projectId}`, body);
+    },
+  },
+  {
+    name: "hex-get-chart-image-from-run",
+    description: "Get PNG of a chart cell from a completed project run.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        projectId: { type: "string" },
+        runId: { type: "string" },
+        staticId: { type: "string", description: "Cell static ID" },
+        width: { type: "integer" },
+        height: { type: "integer" },
+      },
+      required: ["projectId", "runId", "staticId"],
+    },
+    handler: async ({ projectId, runId, staticId, ...rest }) =>
+      apiRequest("GET", `/projects/${projectId}/runs/${runId}/cells/${staticId}/image${qs(rest)}`),
+  },
+  {
+    name: "hex-edit-project-sharing-collections",
+    description: "Add or remove a project from collections.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        projectId: { type: "string" },
+        add: { type: "array", description: "Collection IDs to add" },
+        remove: { type: "array", description: "Collection IDs to remove" },
+      },
+      required: ["projectId"],
+    },
+    handler: async (p) => {
+      const { projectId, ...body } = p;
+      return apiRequest("PATCH", `/projects/${projectId}/sharing/collections`, body);
+    },
+  },
+  {
+    name: "hex-edit-project-sharing-groups",
+    description: "Add, update, or remove group sharing access for a project.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        projectId: { type: "string" },
+        upsert: { type: "array", description: "[{ group: { id }, access: 'CAN_EXPLORE'|'CAN_VIEW'|'CAN_EDIT'|'FULL_ACCESS' }]" },
+        remove: { type: "array", description: "[{ group: { id } }]" },
+      },
+      required: ["projectId"],
+    },
+    handler: async (p) => {
+      const { projectId, ...body } = p;
+      return apiRequest("PATCH", `/projects/${projectId}/sharing/groups`, body);
+    },
+  },
+  {
+    name: "hex-edit-project-sharing-users",
+    description: "Add, update, or remove user sharing access for a project.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        projectId: { type: "string" },
+        upsert: { type: "array", description: "[{ user: { email }, access: 'CAN_EXPLORE'|'CAN_VIEW'|'CAN_EDIT'|'FULL_ACCESS' }]" },
+        remove: { type: "array", description: "[{ user: { email } }]" },
+      },
+      required: ["projectId"],
+    },
+    handler: async (p) => {
+      const { projectId, ...body } = p;
+      return apiRequest("PATCH", `/projects/${projectId}/sharing/users`, body);
+    },
+  },
+  {
+    name: "hex-edit-project-sharing-workspace",
+    description: "Update workspace or public-web sharing settings for a project.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        projectId: { type: "string" },
+        workspace: { type: "object", description: "{ members: 'CAN_VIEW'|'CAN_EXPLORE'|'NONE' }" },
+        publicWeb: { type: "object", description: "{ enabled: boolean }" },
+      },
+      required: ["projectId"],
+    },
+    handler: async (p) => {
+      const { projectId, ...body } = p;
+      return apiRequest("PATCH", `/projects/${projectId}/sharing/workspaceAndPublic`, body);
+    },
+  },
+
+  // ── Semantic Projects ─────────────────────────────────────────────────────
+  {
+    name: "hex-update-semantic-project",
+    description: "Add/remove statuses from datasets and views in a semantic project.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        semanticProjectId: { type: "string" },
+        status: { type: "object", description: "Status updates" },
+      },
+      required: ["semanticProjectId"],
+    },
+    handler: async (p) => {
+      const { semanticProjectId, ...body } = p;
+      return apiRequest("PATCH", `/semantic-projects/${semanticProjectId}`, body);
+    },
+  },
+  {
+    name: "hex-ingest-semantic-project",
+    description: "Ingest a semantic project from uploaded data.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        semanticProjectId: { type: "string" },
+        data: { type: "object", description: "Ingestion payload" },
+      },
+      required: ["semanticProjectId"],
+    },
+    handler: async (p) => {
+      const { semanticProjectId, ...body } = p;
+      return apiRequest("POST", `/semantic-projects/${semanticProjectId}/ingest`, body);
+    },
+  },
+
+  // ── Suggestions ───────────────────────────────────────────────────────────
+  {
+    name: "hex-list-suggestions",
+    description: "List context suggestions (paginated, filterable by status).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        limit: { type: "integer" },
+        after: { type: "string" },
+        status: { type: "string", enum: ["OPEN", "COMPLETED", "DISMISSED", "IN_PROGRESS", "RESOLVED"] },
+        sortBy: { type: "string", enum: ["CREATED_AT"] },
+        sortDirection: { type: "string", enum: ["ASC", "DESC"] },
+      },
+    },
+    handler: async (p) => apiRequest("GET", `/suggestions${qs(p)}`),
+  },
+  {
+    name: "hex-get-suggestion",
+    description: "Get a suggestion including evidence sources and proposed changes.",
+    inputSchema: {
+      type: "object",
+      properties: { suggestionId: { type: "string" } },
+      required: ["suggestionId"],
+    },
+    handler: async ({ suggestionId }) => apiRequest("GET", `/suggestions/${suggestionId}`),
+  },
+  {
+    name: "hex-update-suggestion",
+    description: "Update a suggestion status (OPEN, COMPLETED, DISMISSED, etc.).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        suggestionId: { type: "string" },
+        status: { type: "string", enum: ["OPEN", "COMPLETED", "DISMISSED", "IN_PROGRESS", "RESOLVED"] },
+      },
+      required: ["suggestionId", "status"],
+    },
+    handler: async (p) => {
+      const { suggestionId, ...body } = p;
+      return apiRequest("POST", `/suggestions/${suggestionId}`, body);
+    },
+  },
+  {
+    name: "hex-update-suggestion-change",
+    description: "Update the status of an individual proposed change within a suggestion.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        suggestionId: { type: "string" },
+        changeId: { type: "string" },
+        status: { type: "string" },
+      },
+      required: ["suggestionId", "changeId"],
+    },
+    handler: async (p) => {
+      const { suggestionId, changeId, ...body } = p;
+      return apiRequest("POST", `/suggestions/${suggestionId}/changes/${changeId}`, body);
+    },
+  },
+  {
+    name: "hex-trigger-suggestion-review",
+    description: "Trigger a background review agent run for a suggestion.",
+    inputSchema: {
+      type: "object",
+      properties: { suggestionId: { type: "string" } },
+      required: ["suggestionId"],
+    },
+    handler: async ({ suggestionId }) => apiRequest("POST", `/suggestions/${suggestionId}/review`),
+  },
+
+  // ── Threads (create, followup, messages) ──────────────────────────────────
+  {
+    name: "hex-create-thread",
+    description: "Start a new agent thread with a prompt (runs asynchronously).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        prompt: { type: "string", description: "The initial prompt for the agent" },
+        projectId: { type: "string", description: "Optional project context" },
+      },
+      required: ["prompt"],
+    },
+    handler: async (body) => apiRequest("POST", "/threads", body),
+  },
+  {
+    name: "hex-continue-thread",
+    description: "Send a follow-up prompt to an idle agent thread.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        threadId: { type: "string" },
+        prompt: { type: "string", description: "Follow-up prompt" },
+      },
+      required: ["threadId", "prompt"],
+    },
+    handler: async (p) => {
+      const { threadId, ...body } = p;
+      return apiRequest("POST", `/threads/${threadId}/followup`, body);
+    },
+  },
+  {
+    name: "hex-get-thread-messages",
+    description: "List messages in a thread (chronological, paginated).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        threadId: { type: "string" },
+        limit: { type: "integer" },
+        after: { type: "string" },
+      },
+      required: ["threadId"],
+    },
+    handler: async (p) => {
+      const { threadId, ...rest } = p;
+      return apiRequest("GET", `/threads/${threadId}/messages${qs(rest)}`);
+    },
+  },
+
+  // ── Users (deactivate) ────────────────────────────────────────────────────
+  {
+    name: "hex-deactivate-user",
+    description: "Deactivate a user in the workspace. Their tokens will stop working.",
+    inputSchema: {
+      type: "object",
+      properties: { userId: { type: "string" } },
+      required: ["userId"],
+    },
+    handler: async ({ userId }) => apiRequest("POST", `/users/${userId}/deactivate`),
+  },
 ];
 
 // ── MCP Protocol (JSON-RPC 2.0 over stdio) ─────────────────────────────────
 const SERVER_INFO = {
   name: "hex-mcp",
-  version: "0.1.0",
+  version: "0.2.0",
 };
 
 const CAPABILITIES = {
