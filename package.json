@@ -1,0 +1,20 @@
+{
+  "name": "hex-mcp-server",
+  "version": "0.1.0",
+  "description": "MCP server for the Hex API — audit projects, users, data connections, trigger runs from any MCP client.",
+  "main": "build/index.js",
+  "bin": "build/index.js",
+  "scripts": {
+    "start": "node build/index.js"
+  },
+  "keywords": ["hex", "mcp", "model-context-protocol", "hex-api", "ai-tools"],
+  "author": "Charles Huot De Longchamp",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chuotdel/hex-mcp-server"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "manifest_version": "0.3",
+  "name": "Hex",
+  "version": "0.1.0",
+  "description": "Interact with Hex workspaces: audit projects, users, groups, data connections, trigger runs, and more.",
+  "author": { "name": "Charles Huot De Longchamp" },
+  "repository": { "type": "git", "url": "" },
+  "license": "MIT",
+  "server": {
+    "type": "node",
+    "entry_point": "build/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/build/index.js"],
+      "env": {
+        "HEX_BASE_URL": "${user_config.base_url}",
+        "HEX_API_TOKEN": "${user_config.api_token}"
+      }
+    }
+  },
+  "tools": [
+    { "name": "hex-get-me" },
+    { "name": "hex-list-users" },
+    { "name": "hex-list-projects" },
+    { "name": "hex-get-project" },
+    { "name": "hex-list-groups" },
+    { "name": "hex-get-group" },
+    { "name": "hex-list-collections" },
+    { "name": "hex-list-data-connections" },
+    { "name": "hex-get-data-connection" },
+    { "name": "hex-run-project" },
+    { "name": "hex-get-run-status" },
+    { "name": "hex-get-project-runs" },
+    { "name": "hex-cancel-run" },
+    { "name": "hex-list-cells" },
+    { "name": "hex-get-queried-tables" },
+    { "name": "hex-list-threads" },
+    { "name": "hex-get-thread" }
+  ],
+  "user_config": {
+    "base_url": {
+      "type": "string",
+      "required": true,
+      "sensitive": false,
+      "default": "https://app.hex.tech"
+    },
+    "api_token": {
+      "type": "string",
+      "required": true,
+      "sensitive": true
+    }
+  }
+}
