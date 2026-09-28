@@ -12,7 +12,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/chuotdel/hex-mcp-server"
+    "url": "https://github.com/chuotdelongchamp/hex-mcp-server"
   },
   "engines": {
     "node": ">=18.0.0"
