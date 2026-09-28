@@ -1,7 +1,7 @@
 {
   "name": "hex-mcp-server",
-  "version": "0.1.0",
-  "description": "MCP server for the Hex API — audit projects, users, data connections, trigger runs from any MCP client.",
+  "version": "0.2.0",
+  "description": "MCP server for the Hex API — 58 tools covering the entire public API. Audit projects, users, data connections, trigger runs, manage sharing, and more.",
   "main": "build/index.js",
   "bin": "build/index.js",
   "scripts": {
